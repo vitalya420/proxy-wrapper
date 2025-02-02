@@ -1,7 +1,7 @@
 import socket
 from typing import Tuple
 
-from .helper import craft_connect_request, read_http_response
+# from .helper import craft_connect_request
 from ..decorators import recv_non_blocking
 
 
@@ -40,4 +40,4 @@ class HTTPSocketMixin(socket.socket):
         return self._http_connect_non_blocking(req)
 
     def https_connect(self, address: Tuple[str, int], credentials: Tuple[str, str] | None = None):
-        return self.http_connect(address, credentials, "HTTPS/1.1")
+        return self.http_connect(address, credentials, "HTTP/1.1")

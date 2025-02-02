@@ -39,7 +39,6 @@ class _NonBlockingProxiedSocket(BaseProxiedSocketMixin):
             raise ValueError(f"Unknown protocol: {self.proxy_chain[-1].protocol.value}")
 
     def connect(self, address, /):
-        print("Connect to address", address, self.state, self.proxy_connection_completed, self.connecting_to_proxy)
         if self.state == ProxySocketState.IN_COMMAND_MODE:
             if self.proxy_connection_completed and not self.connecting_to_proxy:
                 # User called .connect()
@@ -63,7 +62,6 @@ class _NonBlockingProxiedSocket(BaseProxiedSocketMixin):
             raise WantWriteError("Handshake is completed", callback=self._connect_to_next_proxy)
 
     def on_connected_to_proxy(self, proxy: Proxy):
-        print("Connected to proxy", proxy)
         try:
             if proxy.protocol == ProxyProtocol.SOCKS5:
                 self.send_socks5_handshake(proxy.credentials, partial(self.on_handshake_completed, proxy))

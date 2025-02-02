@@ -14,4 +14,3 @@ def craft_connect_request(address: Tuple[str, int], credentials: Tuple[str, str]
             + (f'{proxy_auth_header(*credentials)}' if credentials else '')
             + '\r\n'
     ).encode()
-

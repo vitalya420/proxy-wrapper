@@ -13,9 +13,9 @@ def create_socket():
     return proxied
 
 
-async def create_socket_async():
+async def create_socket_async(proxy_string="socks5://127.0.0.1:9050"):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    proxied = await wrap_socket_async(s, "socks5://127.0.0.1:9050", "http://123.16.135.43:10017")
+    proxied = await wrap_socket_async(s, proxy_string)
     return proxied
 
 
@@ -42,7 +42,18 @@ async def main():
     # perform_connecting(socks)
     # print(socks)
 
-    socks = await asyncio.gather(*(create_socket_async() for _ in range(1)))
+    socks = await asyncio.gather(*(create_socket_async() for _ in range(800)), return_exceptions=True)
+    socks2 = await asyncio.gather(*(create_socket_async("socks5://127.0.0.1:9060") for _ in range(800)),
+                                  return_exceptions=True)
+    socks3 = await asyncio.gather(*(create_socket_async("socks5://127.0.0.1:9061") for _ in range(800)),
+                                  return_exceptions=True)
+    socks4 = await asyncio.gather(*(create_socket_async("socks5://127.0.0.1:9062") for _ in range(800)),
+                                  return_exceptions=True)
+    socks5 = await asyncio.gather(*(create_socket_async("socks5://127.0.0.1:9063") for _ in range(800)),
+                                  return_exceptions=True)
+    socks = socks + socks2 + socks3 + socks4 + socks5
+    socks = [sock for sock in socks if not isinstance(sock, Exception)]
+    print(len(socks))
     await asyncio.gather(*(connect_socket_to_address_async(s, ("httpbin.org", 80)) for s in socks))
 
     request = b"GET /ip HTTP/1.1\r\nHost: httpbin.org\r\nConnection: close\r\n\r"
