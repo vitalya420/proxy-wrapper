@@ -3,7 +3,7 @@ from abc import abstractmethod, ABC
 from collections import deque
 from queue import Queue
 
-from proxy_wrapper2.proxy import Proxy
+from proxy_wrapper.proxy import Proxy
 
 
 class AbstractProxiedSocket(socket.socket):

@@ -3,7 +3,7 @@ from collections import deque
 from functools import wraps
 from typing import Dict, Callable
 
-from proxy_wrapper.exceptions import WantReadError, WantWriteError
+from proxy_wrapper.exceptions import WantReadError, WantWriteError, _UncompletedRecv, _UncompletedSend
 
 
 class CallbacksHandler:
@@ -21,12 +21,17 @@ class CallbacksHandler:
                     return callback()
 
                 return func(sock, *args, **kwargs)
-            except WantReadError as e:
+            except (WantReadError, WantWriteError) as e:
                 self.callbacks.setdefault(sock_ref, deque()).append(e.callback)
                 raise
-            except WantWriteError as e:
+            except _UncompletedRecv as e:
                 self.callbacks.setdefault(sock_ref, deque()).append(e.callback)
-                raise
+                raise WantReadError(message=f"{func.__name__} called .recv() but io was not ready yet. Call callback ",
+                                    callback=e.callback)
+            except _UncompletedSend as e:
+                self.callbacks.setdefault(sock_ref, deque()).append(e.callback)
+                raise WantWriteError(message=f"{func.__name__} called .send() but io was not ready yet. Call callback ",
+                                     callback=e.callback)
 
         return inner
 

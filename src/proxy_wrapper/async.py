@@ -1,6 +1,6 @@
 from abc import ABC
 
-from proxy_wrapper2.base import BaseProxiedSocket
+from proxy_wrapper.base import BaseProxiedSocket
 
 
 class AsyncMethods(BaseProxiedSocket, ABC):

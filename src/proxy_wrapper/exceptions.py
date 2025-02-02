@@ -22,7 +22,7 @@ class WantReadError(ProxyWrapperException):
 
 
 class _UncompletedRecv(ProxyWrapperException):
-    def __init__(self, callback: Callable, message: str):
+    def __init__(self, message: str, callback: Callable):
         self.callback = callback
         self.message = message
         super().__init__(message)

@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Callable, Dict, Any
 
-from proxy_wrapper.exceptions import WantReadError
-from proxy_wrapper2.callbacks_handler import cb_handler
+from proxy_wrapper.callbacks_handler import cb_handler
+from proxy_wrapper.exceptions import _UncompletedRecv
 
 
 @dataclass
@@ -37,7 +37,7 @@ async def read_http_response_async(sock: socket.socket):
     def _continue_reading():
         try:
             read_http_response_continuable(sock, handle_done)
-        except WantReadError:
+        except _UncompletedRecv:
             loop.add_reader(sock.fileno(), continue_reading)
 
     _continue_reading()
@@ -68,6 +68,7 @@ def read_http_response(sock: socket.socket,
 
     def read_status_line():
         nonlocal status_line
+
         while not status_line.endswith(b'\r\n'):
             try:
                 byte_ = sock.recv(1)
@@ -75,8 +76,7 @@ def read_http_response(sock: socket.socket,
                     raise ConnectionError("Server closed connection")
                 status_line += byte_
             except BlockingIOError:
-                raise WantReadError("Reading status line does not completed.", callback=read_status_line)
-
+                raise _UncompletedRecv(message="Reading status line does not completed.", callback=read_status_line)
         return read_headers()
 
     def read_headers():
@@ -91,7 +91,7 @@ def read_http_response(sock: socket.socket,
                 if headers == b'\r\n':
                     break
             except BlockingIOError:
-                raise WantReadError("Reading headers does not completed.", callback=read_headers)
+                raise _UncompletedRecv(message="Reading headers does not completed.", callback=read_headers)
 
         return parse()
 
@@ -122,10 +122,10 @@ def read_http_response(sock: socket.socket,
     def call_callback_or_return():
         nonlocal http_version, status_code, status_phrase, headers_dict, body
         nonlocal non_blocking_callback
-        dummy = HTTPResponse(http_version, status_code, status_phrase, headers_dict, body)
+        res = HTTPResponse(http_version, status_code, status_phrase, headers_dict, body)
         if not sock.getblocking() and non_blocking_callback:
-            return non_blocking_callback(dummy)
-        return dummy
+            return non_blocking_callback(res)
+        return res
 
     def read_body(length: int | None, is_chunked: bool = False):
         if length and is_chunked:
@@ -152,7 +152,8 @@ def read_http_response(sock: socket.socket,
                 body += chunk
                 bytes_read += len(chunk)
             except BlockingIOError:
-                raise WantReadError("Reding body does not completed.", callback=partial(read_content_length, length))
+                raise _UncompletedRecv(message="Reding body does not completed.",
+                                       callback=partial(read_content_length, length))
 
         return call_callback_or_return()
 

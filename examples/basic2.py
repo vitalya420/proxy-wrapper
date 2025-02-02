@@ -1,16 +1,18 @@
 import asyncio
 import select
 import socket
+import ssl
 
 from proxy_wrapper.exceptions import WantReadError, WantWriteError
-from proxy_wrapper2.wrapper import wrap_socket
+from proxy_wrapper.wrapper import wrap_socket
 
 
 def create_proxied_socket():
     sock = socket.socket()
     # sock.connect(("127.0.0.1", 9050))
-    # sock.setblocking(False)
-    wrapped = wrap_socket(sock, "https://15.235.141.213:10002")
+    sock.setblocking(False)
+    wrapped = wrap_socket(sock, "https://222.252.194.204:8080",
+                          "https://36.103.167.209:7890", "https://15.235.141.213:10002")
     return wrapped
 
 
@@ -56,8 +58,15 @@ async def main():
             # print(e)
             select.select([], [proxied], [])
 
+    ctx = ssl.create_default_context()
+
+    # proxied.connect(("54.209.95.91", 443))
+    #
+    ctx.check_hostname = False
     as_sock = proxied.to_socket()
     as_sock.setblocking(True)
+    print(as_sock)
+    as_sock = ctx.wrap_socket(as_sock, do_handshake_on_connect=False)
     # proxied.connect(("54.209.95.91", 80))
     as_sock.send(b"GET /ip HTTP/1.1\r\nHost: httpbin.org\r\n\r\n")
     print(as_sock.recv(4096))

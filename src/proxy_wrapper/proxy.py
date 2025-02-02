@@ -1,10 +1,26 @@
-from typing import NamedTuple, Tuple
+from dataclasses import dataclass
+from typing import Literal, Tuple
 
 from proxy_wrapper.enums import ProxyProtocol
 
+_ProtocolLike = ProxyProtocol | Literal["socks5", "socks4", "http", "https"]
+_ProxyTuple = Tuple[_ProtocolLike, Tuple[str, int], Tuple[str, str] | Tuple[None, None] | None]
 
-class Proxy(NamedTuple):
-    protocol: ProxyProtocol
+
+@dataclass
+class Proxy:
+    protocol: _ProtocolLike
     address: Tuple[str, int]
-    credentials: Tuple[str, str] | None = None
+    credentials: Tuple[str, str] | Tuple[None, None] | None = None
 
+    def __post_init__(self):
+        if isinstance(self.protocol, str):
+            self.protocol = ProxyProtocol(self.protocol)
+
+        if isinstance(self.credentials, Tuple):
+            if self.credentials[0] is None and self.credentials[1] is None:
+                self.credentials = None
+
+    @classmethod
+    def from_tuple(cls, proxy: _ProxyTuple):
+        return cls(*proxy)

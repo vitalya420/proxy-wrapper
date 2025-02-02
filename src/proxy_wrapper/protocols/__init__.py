@@ -1,7 +1,7 @@
 from abc import ABC
 
-from proxy_wrapper2.protocols.http import HTTPProxyProtocol
-from proxy_wrapper2.protocols.socks5 import Socks5ProxyProtocol
+from proxy_wrapper.protocols.http import HTTPProxyProtocol
+from proxy_wrapper.protocols.socks5 import Socks5ProxyProtocol
 
 
 class ImplementsProxyProtocolsMixin(

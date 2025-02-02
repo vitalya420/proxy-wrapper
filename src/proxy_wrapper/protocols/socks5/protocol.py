@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Tuple, Callable, Any
 
-from proxy_wrapper2.protocols.base import AbstractProxyProtocol
+from proxy_wrapper.protocols.base import AbstractProxyProtocol
 
 
 class Socks5ProxyProtocol(AbstractProxyProtocol, ABC):

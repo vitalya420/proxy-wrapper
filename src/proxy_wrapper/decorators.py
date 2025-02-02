@@ -1,8 +1,7 @@
-import socket
 from functools import partial, wraps
 from typing import Callable
 
-from proxy_wrapper.exceptions import _UncompletedRecv, _UncompletedSend
+from proxy_wrapper.exceptions import _UncompletedRecv, _UncompletedSend, WantReadError, WantWriteError
 
 
 def recv_non_blocking(func: Callable):
@@ -60,13 +59,16 @@ def send_non_blocking(func: Callable):
     return wrapper
 
 
-# def create_safe_reader(max_read_buf: int | None = None):
-#     total_read = b''
-#
-#
-#     def safe_reader(sock: socket.socket, buf: int):
-#         try:
-#             remaining = max_read_buf - len(total_read) if max_read_buf else None
-#             data = sock.recv(remaining)
-#             # total_read += data
-#
+def uncompleted2want(func: Callable):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except _UncompletedRecv as e:
+            return WantReadError(message=f"{func.__name__} called .recv() but io was not ready yet. Call callback "
+                                         f"to recall this function", callback=e.callback)
+        except _UncompletedSend as e:
+            return WantWriteError(message=f"{func.__name__} called .send() but io was not ready yet. Call callback ",
+                                  callback=e.callback)
+
+    return wrapper

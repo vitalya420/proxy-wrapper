@@ -1,12 +1,12 @@
 from collections.abc import Callable
 from functools import partial, wraps
 
+from proxy_wrapper.base import BaseProxiedSocket
+from proxy_wrapper.callbacks_handler import cb_handler
+from proxy_wrapper.enums import ProxyProtocol
 from proxy_wrapper.exceptions import WantWriteError, _UncompletedRecv, WantReadError
-from proxy_wrapper2.base import BaseProxiedSocket
-from proxy_wrapper2.callbacks_handler import cb_handler
-from proxy_wrapper2.enums import ProxyProtocol
-from proxy_wrapper2.protocols import ImplementsProxyProtocolsMixin
-from proxy_wrapper2.proxy import Proxy
+from proxy_wrapper.protocols import ImplementsProxyProtocolsMixin
+from proxy_wrapper.proxy import Proxy
 
 
 class _NonBlockingProxiedSocket(BaseProxiedSocket, ImplementsProxyProtocolsMixin):
@@ -103,9 +103,9 @@ class _NonBlockingProxiedSocket(BaseProxiedSocket, ImplementsProxyProtocolsMixin
             raise RuntimeError("Can't connect to target while proxy queue is not empty")
         self._connect_according_to_protocol(address, to_target=True)
 
-    def _on_connected_via_http_proxy(self, success: bool, to_target: bool = False):
+    def _on_connected_via_http_proxy(self, success: bool, reason: str = '', to_target: bool = False):
         if not success:
-            raise ConnectionError("HTTP proxy connection failed")
+            raise ConnectionError(f"HTTP proxy connection to {self.proxy_to_connect.address} failed. Reason: {reason}")
 
         if to_target:
             self.connected_to_target = True
