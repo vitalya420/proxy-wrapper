@@ -26,6 +26,3 @@ def wrap_socket(sock: socket.socket, *proxy_strings: str, perform_connection: bo
         raise ValueError("perform_connection=True is not allowed when the socket is in non-blocking mode")
     return proxied
 
-
-async def wrap_socket_async(sock: socket.socket, *proxy_string: Sequence[str], perform_connection: bool | None = None):
-    print(f"wrap sock, {proxy_string}, {perform_connection=}")

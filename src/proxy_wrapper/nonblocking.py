@@ -6,6 +6,7 @@ from proxy_wrapper.callbacks_handler import cb_handler
 from proxy_wrapper.enums import ProxyProtocol
 from proxy_wrapper.exceptions import WantWriteError, _UncompletedRecv, WantReadError
 from proxy_wrapper.protocols import ImplementsProxyProtocolsMixin
+from proxy_wrapper.protocols.socks5.enums import ReplyStatus
 from proxy_wrapper.proxy import Proxy
 
 
@@ -46,6 +47,7 @@ class _NonBlockingProxiedSocket(BaseProxiedSocket, ImplementsProxyProtocolsMixin
 
         try:
             self.connect(proxy.address)
+            self._on_connected_and_raised_for_next_connection(proxy)
         except BlockingIOError:
             raise WantWriteError(message=".connect() called. Got BlockingIOError. Need to be writeable",
                                  callback=partial(self._on_connected_and_raised_for_next_connection, proxy))
@@ -65,7 +67,6 @@ class _NonBlockingProxiedSocket(BaseProxiedSocket, ImplementsProxyProtocolsMixin
         return self._raise_for_next_connection()
 
     def _connect_to_next_proxy(self):
-
         proxy = self.proxy_queue.get_nowait()
         self.connect_to_proxy(proxy)
 
@@ -79,13 +80,25 @@ class _NonBlockingProxiedSocket(BaseProxiedSocket, ImplementsProxyProtocolsMixin
 
     def _on_connected_and_raised_for_next_connection(self, proxy: Proxy):
         self._on_connected_to_proxy(proxy)
-        self._raise_for_next_connection()
 
     def _on_connected_to_proxy(self, proxy: Proxy):
-        self.in_command_mode = True
-        self.connecting_to_proxy = False
-        self.proxy_to_connect = None
-        self.proxy_chain.append(proxy)
+        def _after_handshake(proxy_: Proxy):
+            self.in_command_mode = True
+            self.connecting_to_proxy = False
+            self.proxy_to_connect = None
+            self.proxy_chain.append(proxy_)
+
+        def _socks5_cb(proxy_: Proxy):
+            _after_handshake(proxy_)
+            self._raise_for_next_connection()
+
+        if proxy.protocol == ProxyProtocol.SOCKS5:
+            return self.socks5_handshake(proxy.credentials, non_blocking_callback=partial(
+                _socks5_cb, proxy_=proxy
+            ))
+        if proxy.protocol in (ProxyProtocol.HTTP, ProxyProtocol.HTTPS):
+            _after_handshake(proxy)
+            self._raise_for_next_connection()
 
     def _connect_according_to_protocol(self, address, to_target: bool = False):
         last_proxy = self.proxy_chain[-1]
@@ -95,6 +108,9 @@ class _NonBlockingProxiedSocket(BaseProxiedSocket, ImplementsProxyProtocolsMixin
         if last_protocol_in_chain in (ProxyProtocol.HTTP, ProxyProtocol.HTTPS):
             return self.http_connect(address, credentials,
                                      partial(self._on_connected_via_http_proxy, to_target=to_target))
+        if last_protocol_in_chain == ProxyProtocol.SOCKS5:
+            return self.socks5_connect(address,
+                                       partial(self._on_connected_via_socks5_proxy, to_target=to_target))
 
     def _connect_to_target_according_protocol(self, address):
         if self.connected_to_target:
@@ -106,6 +122,15 @@ class _NonBlockingProxiedSocket(BaseProxiedSocket, ImplementsProxyProtocolsMixin
     def _on_connected_via_http_proxy(self, success: bool, reason: str = '', to_target: bool = False):
         if not success:
             raise ConnectionError(f"HTTP proxy connection to {self.proxy_to_connect.address} failed. Reason: {reason}")
+
+        if to_target:
+            self.connected_to_target = True
+            self.in_command_mode = False
+
+    def _on_connected_via_socks5_proxy(self, success: bool, reason: ReplyStatus = '', to_target: bool = False):
+        if not success:
+            raise ConnectionError(
+                f"SOCKS5 proxy connection to {self.proxy_to_connect.address} failed. Reason: {reason}")
 
         if to_target:
             self.connected_to_target = True
